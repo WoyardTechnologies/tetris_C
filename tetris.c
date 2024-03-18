@@ -96,7 +96,7 @@ void draw_falling_piece(){
     }
 }
 
-int check_collision(struct point dir_vector, int orientation){
+int check_collision(struct point dir_vector, int orientation){ // checks for collision in the direction of dir_vector
     for (int i = 0; i < SIZE_OF_PIECE; i++){
         for (int j = 0; j < SIZE_OF_PIECE; j++){
             if (pieces[piece_type][orientation][i][j] != 0){
