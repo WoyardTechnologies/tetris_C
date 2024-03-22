@@ -200,21 +200,21 @@ int handle_input() {
         case SDLK_RIGHT:
             if (!check_collision(RIGHT, piece_orientation))
                 piece.x++;
-            break;
+            return PLAY;
         case SDLK_LEFT:
             if (!check_collision(LEFT, piece_orientation))
                 piece.x--;
-            break;
+            return PLAY;
         case SDLK_DOWN:
             while (!check_collision(DOWN, piece_orientation))
                 piece.y++;
-            break;
+            return PLAY;
         case SDLK_SPACE:
             rotate_piece();
-            break;
+            return PLAY;
         case SDLK_UP:
             rotate_piece();
-            break;
+            return PLAY;
         case SDLK_ESCAPE:
             return EXIT;
         default:
@@ -228,8 +228,8 @@ int handle_input() {
                     return GAME_OVER;
                 }
             }
+            return PLAY;
     }
-    return PLAY;
 }
 
 int main() {
