@@ -25,7 +25,7 @@ const struct point LEFT = {-1, 0};
 const struct point RIGHT = {1, 0};
 
 const int DELAY = 10;
-const int FALL_INTERVAL = 16;
+const int FALL_INTERVAL = 12;
 const int RANDOM_SEED = 123456789;
 const int N_OF_TYPES = 7;
 const int N_OF_ORIENTATIONS = 4;
@@ -281,4 +281,5 @@ int main() {
         SDL_Delay(DELAY);
     }
     while (gfx_getkey() != SDLK_ESCAPE);
+    return 0;
 }
