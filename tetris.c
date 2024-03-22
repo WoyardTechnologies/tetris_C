@@ -24,11 +24,14 @@ const struct point DOWN = {0, 1};
 const struct point LEFT = {-1, 0};
 const struct point RIGHT = {1, 0};
 
-const int DELAY = 100;
+const int DELAY = 10;
+const int FALL_INTERVAL = 16;
 const int RANDOM_SEED = 123456789;
 const int N_OF_TYPES = 7;
 const int N_OF_ORIENTATIONS = 4;
 const int SIZE_OF_PIECE = 4;
+const int NEXT_PIECE_OFFSET = 2;
+const float NEXT_PIECE_Y_OFFSET_SCALE = 0.25; // at which height in the matrix the next piece will be displayed
 const float BOARD_WIDTH_SCALE = 0.75; // amount of available space the matrix will occupy
 const float BOARD_HEIGHT_SCALE = 0.90; // amount of available space the matrix will occupy
 const float GAME_OVER_X_OFFSET_SCALE = 0.3;
@@ -38,15 +41,18 @@ struct point ORIGIN;
 int BOARD_WIDTH, BOARD_HEIGHT;
 int SQUARE_WIDTH, SQUARE_HEIGHT;
 
+int fall_delay_cnt = 0;
 int game_state = PLAY;
 int game_matrix[GAME_MATRIX_WIDTH][GAME_MATRIX_HEIGHT] = {0};
 struct point piece;
 int piece_type, piece_orientation;
+int next_piece_type;
 
 void tetris_init() {
     float screen_aspect_ratio = SCREEN_WIDTH / (float) SCREEN_HEIGHT;
     float matrix_aspect_ratio = GAME_MATRIX_WIDTH / (float) GAME_MATRIX_HEIGHT;
-    if (screen_aspect_ratio > matrix_aspect_ratio) { // screen is wider than game matrix
+    float game_aspect_ratio = (GAME_MATRIX_WIDTH + SIZE_OF_PIECE + NEXT_PIECE_OFFSET) / (float) GAME_MATRIX_HEIGHT;
+    if (screen_aspect_ratio > game_aspect_ratio) { // screen is wider than game matrix
         BOARD_HEIGHT = SCREEN_HEIGHT * BOARD_HEIGHT_SCALE;
         BOARD_WIDTH = BOARD_HEIGHT * matrix_aspect_ratio;
     } else { //screen is narrower or equal to game matrix
@@ -58,6 +64,17 @@ void tetris_init() {
     SQUARE_WIDTH = BOARD_WIDTH / GAME_MATRIX_WIDTH;
     SQUARE_HEIGHT = BOARD_HEIGHT / GAME_MATRIX_HEIGHT;
     srand(RANDOM_SEED);
+    next_piece_type = random() % N_OF_TYPES;
+}
+
+void draw_background() {
+    gfx_filledRect(0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, BLACK);
+}
+
+void display_game_over() {
+    gfx_textout(ORIGIN.x + BOARD_WIDTH * GAME_OVER_X_OFFSET_SCALE,
+                ORIGIN.y + BOARD_HEIGHT * GAME_OVER_Y_OFFSET_SCALE,
+                "GAME OVER", RED);
 }
 
 void draw_square_in_matrix(int x, int y, enum color col, int filled) {
@@ -91,6 +108,20 @@ void draw_falling_piece() {
                 draw_square_in_matrix(piece.x + i, piece.y + j, RED, 1);
             } else if (pieces[piece_type][piece_orientation][i][j] == 2) {
                 draw_square_in_matrix(piece.x + i, piece.y + j, MAGENTA, 1);
+            }
+        }
+    }
+}
+
+void draw_next_piece(){
+    for (int i = 0; i < SIZE_OF_PIECE; i++) {
+        for (int j = 0; j < SIZE_OF_PIECE; j++) {
+            if (pieces[next_piece_type][0][i][j] == 1) {
+                draw_square_in_matrix(GAME_MATRIX_WIDTH + NEXT_PIECE_OFFSET + i,
+                                      GAME_MATRIX_HEIGHT * NEXT_PIECE_Y_OFFSET_SCALE + j, RED, 1);
+            } else if (pieces[next_piece_type][0][i][j] == 2) {
+                draw_square_in_matrix(GAME_MATRIX_WIDTH + NEXT_PIECE_OFFSET + i,
+                                      GAME_MATRIX_HEIGHT * NEXT_PIECE_Y_OFFSET_SCALE + j, MAGENTA, 1);
             }
         }
     }
@@ -156,7 +187,8 @@ int rotate_piece() {
 void spawn_piece() {
     piece.x = GAME_MATRIX_WIDTH / 2 - SIZE_OF_PIECE / 2;
     piece.y = 0;
-    piece_type = random() % N_OF_TYPES;
+    piece_type = next_piece_type;
+    next_piece_type = random() % N_OF_TYPES;
     piece_orientation = random() % N_OF_ORIENTATIONS;
 }
 
@@ -185,14 +217,18 @@ int check_for_full_lines() {
     return 0;
 }
 
-void draw_background() {
-    gfx_filledRect(0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, BLACK);
-}
-
-void display_game_over() {
-    gfx_textout(ORIGIN.x + BOARD_WIDTH * GAME_OVER_X_OFFSET_SCALE,
-                ORIGIN.y + BOARD_HEIGHT * GAME_OVER_Y_OFFSET_SCALE,
-                "GAME OVER", RED);
+int handle_piece_fall(){
+    if (!check_collision(DOWN, piece_orientation)) {
+        piece.y++;
+    } else {
+        append_piece_to_matrix();
+        while (check_for_full_lines()); // drop all full lines
+        spawn_piece();
+        if (check_collision(ZERO, piece_orientation)) {
+            return GAME_OVER;
+        }
+    }
+    return PLAY;
 }
 
 int handle_input() {
@@ -218,17 +254,12 @@ int handle_input() {
         case SDLK_ESCAPE:
             return EXIT;
         default:
-            if (!check_collision(DOWN, piece_orientation)) {
-                piece.y++;
+            fall_delay_cnt = (fall_delay_cnt + 1) % FALL_INTERVAL;
+            if (fall_delay_cnt == 0) {
+                return handle_piece_fall();
             } else {
-                append_piece_to_matrix();
-                while (check_for_full_lines()); // drop all full lines
-                spawn_piece();
-                if (check_collision(ZERO, piece_orientation)) {
-                    return GAME_OVER;
-                }
+                return PLAY;
             }
-            return PLAY;
     }
 }
 
@@ -242,6 +273,7 @@ int main() {
         draw_background();
         draw_game_matrix();
         draw_falling_piece();
+        draw_next_piece();
         game_state = handle_input();
         if (game_state == GAME_OVER)
             display_game_over();
